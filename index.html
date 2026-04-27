@@ -608,6 +608,9 @@ function parseTokens(rule, mode) {
   return tokens;
 }
 
+const MAX_LEN = 1024;
+const MAX_RULES = 2000;
+
 function applyTokens(word, tokens) {
   let w = word;
   for (const t of tokens) {
@@ -664,12 +667,14 @@ function applyTokens(word, tokens) {
       case '/': { if(!w.includes(t.a)) return null; break; }
       case '=': { if(w[posToInt(t.p)]!==t.c) return null; break; }
     }
+    if (w.length > MAX_LEN) return null;
   }
   return w;
 }
 
 function parseFile(text) {
-  return text.split('\n').map(l=>l.trim()).filter(l=>l && !l.startsWith('#') && !l.startsWith('['));
+  const all = text.split('\n').map(l=>l.trim()).filter(l=>l && !l.startsWith('#') && !l.startsWith('['));
+  return { rules: all.slice(0, MAX_RULES), truncated: all.length > MAX_RULES, total: all.length };
 }
 
 function dominant(tokens) {
@@ -692,8 +697,8 @@ function App() {
   );
 
   function analyze() {
-    const rawRules = parseFile(rulesText);
-    const results = rawRules.map((rule, idx) => {
+    const parsed = parseFile(rulesText);
+    const results = parsed.rules.map((rule, idx) => {
       const tokens = parseTokens(rule, mode);
       const eng = tokens.map(t=>t.eng).join(' → ');
       const cat = dominant(tokens);
@@ -707,7 +712,7 @@ function App() {
     const cats = {};
     results.forEach(r => { cats[r.cat] = (cats[r.cat]||0)+1; });
     setFilter('all');
-    setAnalyzed({ results, totalOut, cats, ruleCount: results.length });
+    setAnalyzed({ results, totalOut, cats, ruleCount: results.length, truncated: parsed.truncated, total: parsed.total });
   }
 
   useEffect(() => {
@@ -760,6 +765,7 @@ function App() {
       React.createElement('button', {className:'btn-analyze',onClick:analyze}, '▶  Analyze rules'),
       analyzed && React.createElement('div', {className:'stats-bar'},
         React.createElement('div', {className:'stat'}, React.createElement('strong', null, analyzed.ruleCount), 'rules'),
+        analyzed.truncated && React.createElement('div', {className:'stat',style:{color:'var(--amber)'},title:`input had ${analyzed.total} rules, capped at ${MAX_RULES}`}, 'truncated'),
         React.createElement('div', {className:'stat'}, React.createElement('strong', null, analyzed.totalOut), 'outputs'),
         ...Object.entries(analyzed.cats).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([cat,n]) =>
           React.createElement('div', {className:'stat',key:cat}, React.createElement('strong', null, n), cat)

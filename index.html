@@ -601,6 +601,8 @@ function parseTokens(rule, mode) {
     else if (ch === '-' && isHashcat) { const p=s[i+1]||'0'; tokens.push({op:'-',p,eng:`decrement char at pos ${posToInt(p)}`,cat:'transform'}); i+=2; }
     else if (ch === 'Y' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'Y',n,eng:`dup last N=${posToInt(n)} → append`,cat:'transform'}); i+=2; }
     else if (ch === 'y' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'y',n,eng:`dup first N=${posToInt(n)} → prepend`,cat:'transform'}); i+=2; }
+    else if (!isHashcat && 'kKqEzZ*+-Yy'.includes(ch)) { tokens.push({op:ch,eng:`'${ch}' is hashcat only`,cat:'noop'}); i++; }
+    else if (isHashcat && '()'.includes(ch)) { tokens.push({op:ch,eng:`'${ch}' is JtR only`,cat:'noop'}); i++; }
     else { tokens.push({op:ch,eng:`unknown op: '${ch}'`,cat:'noop'}); i++; }
   }
   return tokens;

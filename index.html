@@ -379,7 +379,7 @@
 
 <main>
   <p class="intro">
-    # Paste a JtR or Hashcat rule file below. Each rule is parsed, explained in plain English,<br>
+    # Paste a JtR rule file below. Each rule is parsed, explained in plain English,<br>
     # and applied to your sample words so you can see exactly what it does.
   </p>
 
@@ -686,7 +686,7 @@ function App() {
           value: rulesText,
           onChange: e=>setRulesText(e.target.value),
           style:{height:'180px'},
-          placeholder:'Paste JtR/Hashcat rules here, one per line...\n# Lines starting with # are comments\n# [Section headers] are ignored'
+          placeholder:'Paste JtR rules here, one per line...\n# Lines starting with # are comments\n# [Section headers] are ignored'
         }),
         React.createElement('div', {className:'preset-btns'},
           React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(BEST64)}, 'best64'),

@@ -730,8 +730,8 @@ function App() {
           placeholder:'Paste JtR rules here, one per line...\n# Lines starting with # are comments\n# [Section headers] are ignored'
         }),
         React.createElement('div', {className:'preset-btns'},
-          React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(BEST64)}, 'best64'),
-          React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(COMMON)}, 'common'),
+          React.createElement('button', {className:'btn-preset',onClick:()=>{setRulesText(BEST64);setMode('hashcat');}}, 'best64'),
+          React.createElement('button', {className:'btn-preset',onClick:()=>{setRulesText(COMMON);setMode('jtr');}}, 'common'),
           React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText('')}, 'clear')
         )
       ),

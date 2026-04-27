@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JtR Rule Inspector — Trapdoor Security</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0c0a;
+    --bg2:       #111511;
+    --bg3:       #161c16;
+    --border:    #1e2a1e;
+    --border2:   #2a3a2a;
+    --fg:        #c8d8c0;
+    --fg2:       #7a9a72;
+    --fg3:       #4a6444;
+    --green:     #4ade80;
+    --green-dim: #1a3a20;
+    --cyan:      #67e8f9;
+    --cyan-dim:  #0a2a30;
+    --amber:     #fbbf24;
+    --amber-dim: #2a1e08;
+    --red:       #f87171;
+    --red-dim:   #2a0f0f;
+    --purple:    #c084fc;
+    --purple-dim:#1e0a2a;
+    --teal:      #2dd4bf;
+    --teal-dim:  #0a2020;
+    --mono:      'IBM Plex Mono', 'Courier New', monospace;
+    --sans:      'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    background: var(--bg2);
+  }
+
+  header h1 {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--green);
+    letter-spacing: 0.05em;
+  }
+
+  header span {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg3);
+  }
+
+  header a {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg3);
+    text-decoration: none;
+    margin-left: auto;
+    border: 1px solid var(--border2);
+    padding: 3px 10px;
+    border-radius: 4px;
+  }
+
+  header a:hover { color: var(--green); border-color: var(--green); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 28px 32px; }
+
+  .intro {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg3);
+    margin-bottom: 24px;
+    padding: 10px 14px;
+    border-left: 2px solid var(--border2);
+  }
+
+  .inputs {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .input-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .preset-btns { display: flex; gap: 4px; margin-left: 4px; }
+
+  .btn-preset {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--fg3);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-preset:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  textarea {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus { border-color: var(--border2); }
+  textarea::placeholder { color: var(--fg3); }
+
+  .analyze-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .btn-analyze {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 22px;
+    background: var(--green-dim);
+    border: 1px solid var(--green);
+    color: var(--green);
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: all 0.15s;
+  }
+
+  .btn-analyze:hover { background: #1a4a20; }
+  .btn-analyze:active { transform: scale(0.98); }
+
+  .stats-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .stat {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg3);
+  }
+
+  .stat strong {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--fg);
+    display: block;
+    line-height: 1.2;
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .filter-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-right: 4px;
+  }
+
+  .btn-filter {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg3);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-filter:hover { color: var(--fg); border-color: var(--border2); }
+  .btn-filter.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead tr { background: var(--bg3); }
+
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--fg3);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--bg3); }
+
+  .td-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg3);
+    min-width: 32px;
+    text-align: right;
+    padding-right: 14px;
+  }
+
+  .rule-str {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    color: var(--cyan);
+  }
+
+  .eng-cell { color: var(--fg2); font-size: 12px; min-width: 180px; max-width: 260px; line-height: 1.5; }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-weight: 500;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  .badge-transform { background: var(--cyan-dim);   color: var(--cyan);   border: 1px solid #1a5060; }
+  .badge-case      { background: var(--amber-dim);  color: var(--amber);  border: 1px solid #4a3010; }
+  .badge-append    { background: var(--green-dim);  color: var(--green);  border: 1px solid #1a4a20; }
+  .badge-prepend   { background: var(--teal-dim);   color: var(--teal);   border: 1px solid #0a3030; }
+  .badge-delete    { background: var(--red-dim);    color: var(--red);    border: 1px solid #4a1010; }
+  .badge-subst     { background: var(--purple-dim); color: var(--purple); border: 1px solid #3a1050; }
+  .badge-reject    { background: var(--bg3);        color: var(--fg3);    border: 1px solid var(--border2); }
+  .badge-noop      { background: var(--bg3);        color: var(--fg3);    border: 1px solid var(--border); }
+
+  .outputs-cell { max-width: 380px; }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 1px 6px;
+    margin: 2px;
+    border-radius: 3px;
+    display: inline-block;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--fg2);
+    white-space: nowrap;
+  }
+
+  .pill.changed  { background: var(--green-dim); border-color: #1a4a20; color: var(--green); }
+  .pill.rejected { background: var(--red-dim);   border-color: #4a1010; color: var(--fg3); text-decoration: line-through; }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    font-family: var(--mono);
+    color: var(--fg3);
+    font-size: 13px;
+  }
+
+  .empty-state .big { font-size: 22px; color: var(--border2); margin-bottom: 12px; }
+
+  footer {
+    margin-top: 48px;
+    padding: 16px 32px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg3);
+    text-align: center;
+  }
+
+  footer a { color: var(--fg3); text-decoration: none; }
+  footer a:hover { color: var(--green); }
+
+  @media (max-width: 700px) {
+    main { padding: 16px; }
+    .inputs { grid-template-columns: 1fr; }
+    header { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>// JtR Rule Inspector</h1>
+  <span>v1.0 — client-side only, no data leaves your browser</span>
+  <a href="https://trapdoorsec.com" target="_blank" rel="noopener">trapdoorsec.com ↗</a>
+</header>
+
+<main>
+  <p class="intro">
+    # Paste a JtR or Hashcat rule file below. Each rule is parsed, explained in plain English,<br>
+    # and applied to your sample words so you can see exactly what it does.
+  </p>
+
+  <div id="root"></div>
+</main>
+
+<footer>
+  built by <a href="https://trapdoorsec.com">Trapdoor Security</a> — @akses_0x00 —
+  rule engine runs entirely in your browser &mdash;
+  <a href="https://www.openwall.com/john/doc/RULES.shtml" target="_blank" rel="noopener">JtR rules reference ↗</a>
+</footer>
+
+<script>
+const { useState, useMemo } = React;
+
+const BEST64 = `# best64 (approximation — paste your actual best64.rule for exact results)
+:
+l
+u
+c
+r
+d
+f
+$1
+$2
+$3
+$4
+$5
+$6
+$7
+$8
+$9
+$0
+$!
+$@
+c$1
+c$2
+c$3
+c$!
+c$@
+l$1
+l$2
+l$!
+$1$2
+$1$2$3
+^1
+^2
+r$1
+r$2
+r$!
+sa@
+se3
+si1
+so0
+ss$
+l sa@
+c sa@
+l so0
+c so0
+l se3
+c se3
+d$1
+d$!
+$_
+$-
+$$
+c$1$2$3
+l$1$2$3
+c$9$9
+c$0$0`;
+
+const COMMON = `# common mangling rules
+:
+l
+u
+c
+r
+d
+$1
+$!
+$123
+$1$2$3
+^1
+c$1
+c$!
+sa@
+se3
+si1
+so0
+l sa@
+c$1$!
+r$1`;
+
+const DEFAULT_WORDS = `password\ndragon\nmonkey\nletmein\nfootball\nadmin\nwelcome\nshadow`;
+
+function posToInt(c) {
+  if (!c) return 0;
+  const n = parseInt(c, 36);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseTokens(rule) {
+  const tokens = [];
+  let i = 0;
+  const s = rule.trim();
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === ':') { tokens.push({op:':',eng:'passthrough (no change)',cat:'noop'}); i++; }
+    else if (ch === 'l') { tokens.push({op:'l',eng:'lowercase all',cat:'case'}); i++; }
+    else if (ch === 'u') { tokens.push({op:'u',eng:'uppercase all',cat:'case'}); i++; }
+    else if (ch === 'c') { tokens.push({op:'c',eng:'capitalize first letter',cat:'case'}); i++; }
+    else if (ch === 'C') { tokens.push({op:'C',eng:'lowercase first, uppercase rest',cat:'case'}); i++; }
+    else if (ch === 'r') { tokens.push({op:'r',eng:'reverse',cat:'transform'}); i++; }
+    else if (ch === 'd') { tokens.push({op:'d',eng:'duplicate word',cat:'transform'}); i++; }
+    else if (ch === 'f') { tokens.push({op:'f',eng:'reflect (append reversed)',cat:'transform'}); i++; }
+    else if (ch === 't') { tokens.push({op:'t',eng:'toggle case (all chars)',cat:'case'}); i++; }
+    else if (ch === 'k') { tokens.push({op:'k',eng:'swap first two chars',cat:'transform'}); i++; }
+    else if (ch === 'K') { tokens.push({op:'K',eng:'swap last two chars',cat:'transform'}); i++; }
+    else if (ch === 'q') { tokens.push({op:'q',eng:'duplicate each char',cat:'transform'}); i++; }
+    else if (ch === 'E') { tokens.push({op:'E',eng:'title case',cat:'case'}); i++; }
+    else if (ch === '{') { tokens.push({op:'{',eng:'rotate left (first→last)',cat:'transform'}); i++; }
+    else if (ch === '}') { tokens.push({op:'}',eng:'rotate right (last→first)',cat:'transform'}); i++; }
+    else if (ch === '[') { tokens.push({op:'[',eng:'delete first char',cat:'delete'}); i++; }
+    else if (ch === ']') { tokens.push({op:']',eng:'delete last char',cat:'delete'}); i++; }
+    else if (ch === '$') { const a=s[i+1]||''; tokens.push({op:'$',a,eng:`append '${a}'`,cat:'append'}); i+=2; }
+    else if (ch === '^') { const a=s[i+1]||''; tokens.push({op:'^',a,eng:`prepend '${a}'`,cat:'prepend'}); i+=2; }
+    else if (ch === '@') { const a=s[i+1]||''; tokens.push({op:'@',a,eng:`delete all '${a}'`,cat:'delete'}); i+=2; }
+    else if (ch === 'D') { const p=s[i+1]||'0'; tokens.push({op:'D',p,eng:`delete char at pos ${posToInt(p)}`,cat:'delete'}); i+=2; }
+    else if (ch === 'z') { const n=s[i+1]||'1'; tokens.push({op:'z',n,eng:`dup first char ×${posToInt(n)}`,cat:'transform'}); i+=2; }
+    else if (ch === 'Z') { const n=s[i+1]||'1'; tokens.push({op:'Z',n,eng:`dup last char ×${posToInt(n)}`,cat:'transform'}); i+=2; }
+    else if (ch === 'p') { const n=s[i+1]||'1'; tokens.push({op:'p',n,eng:`dup word ×${posToInt(n)+1}`,cat:'transform'}); i+=2; }
+    else if (ch === 'T') { const p=s[i+1]||'0'; tokens.push({op:'T',p,eng:`toggle case at pos ${posToInt(p)}`,cat:'case'}); i+=2; }
+    else if (ch === "'") { const n=s[i+1]||'0'; tokens.push({op:"'",n,eng:`truncate to ${posToInt(n)} chars`,cat:'delete'}); i+=2; }
+    else if (ch === '<') { const n=s[i+1]||'0'; tokens.push({op:'<',n,eng:`reject if len ≥ ${posToInt(n)}`,cat:'reject'}); i+=2; }
+    else if (ch === '>') { const n=s[i+1]||'0'; tokens.push({op:'>',n,eng:`reject if len ≤ ${posToInt(n)}`,cat:'reject'}); i+=2; }
+    else if (ch === '_') { const n=s[i+1]||'0'; tokens.push({op:'_',n,eng:`reject if len ≠ ${posToInt(n)}`,cat:'reject'}); i+=2; }
+    else if (ch === '!') { const a=s[i+1]||''; tokens.push({op:'!',a,eng:`reject if contains '${a}'`,cat:'reject'}); i+=2; }
+    else if (ch === '/') { const a=s[i+1]||''; tokens.push({op:'/',a,eng:`reject if missing '${a}'`,cat:'reject'}); i+=2; }
+    else if (ch === 's') { const f=s[i+1]||'',t=s[i+2]||''; tokens.push({op:'s',f,t,eng:`replace '${f}' → '${t}'`,cat:'subst'}); i+=3; }
+    else if (ch === '*') { const x=s[i+1]||'0',y=s[i+2]||'1'; tokens.push({op:'*',x,y,eng:`swap pos ${posToInt(x)} ↔ ${posToInt(y)}`,cat:'transform'}); i+=3; }
+    else if (ch === 'i') { const p=s[i+1]||'0',c=s[i+2]||''; tokens.push({op:'i',p,c,eng:`insert '${c}' at pos ${posToInt(p)}`,cat:'append'}); i+=3; }
+    else if (ch === 'o') { const p=s[i+1]||'0',c=s[i+2]||''; tokens.push({op:'o',p,c,eng:`overwrite pos ${posToInt(p)} with '${c}'`,cat:'subst'}); i+=3; }
+    else if (ch === '=') { const p=s[i+1]||'0',c=s[i+2]||''; tokens.push({op:'=',p,c,eng:`reject if pos ${posToInt(p)} ≠ '${c}'`,cat:'reject'}); i+=3; }
+    else { tokens.push({op:ch,eng:`unknown op: '${ch}'`,cat:'noop'}); i++; }
+  }
+  return tokens;
+}
+
+function applyTokens(word, tokens) {
+  let w = word;
+  for (const t of tokens) {
+    switch(t.op) {
+      case ':': break;
+      case 'l': w=w.toLowerCase(); break;
+      case 'u': w=w.toUpperCase(); break;
+      case 'c': w=w.length>0?w[0].toUpperCase()+w.slice(1).toLowerCase():w; break;
+      case 'C': w=w.length>0?w[0].toLowerCase()+w.slice(1).toUpperCase():w; break;
+      case 'r': w=[...w].reverse().join(''); break;
+      case 'd': w=w+w; break;
+      case 'f': w=w+[...w].reverse().join(''); break;
+      case 't': w=[...w].map(c=>c===c.toUpperCase()?c.toLowerCase():c.toUpperCase()).join(''); break;
+      case 'k': w=w.length>=2?w[1]+w[0]+w.slice(2):w; break;
+      case 'K': w=w.length>=2?w.slice(0,-2)+w[w.length-1]+w[w.length-2]:w; break;
+      case 'q': w=[...w].map(c=>c+c).join(''); break;
+      case 'E': w=w.split(/\s+/).map(s=>s.length>0?s[0].toUpperCase()+s.slice(1).toLowerCase():s).join(' '); break;
+      case '{': w=w.length>0?w.slice(1)+w[0]:w; break;
+      case '}': w=w.length>0?w[w.length-1]+w.slice(0,-1):w; break;
+      case '[': w=w.slice(1); break;
+      case ']': w=w.slice(0,-1); break;
+      case '$': w=w+t.a; break;
+      case '^': w=t.a+w; break;
+      case '@': w=[...w].filter(c=>c!==t.a).join(''); break;
+      case 'D': { const p=posToInt(t.p); w=w.slice(0,p)+w.slice(p+1); break; }
+      case 'z': { const n=posToInt(t.n); w=(w[0]||'').repeat(n)+w; break; }
+      case 'Z': { const n=posToInt(t.n); w=w+(w[w.length-1]||'').repeat(n); break; }
+      case 'p': { const n=posToInt(t.n); const orig=w; for(let j=0;j<n;j++) w+=orig; break; }
+      case 'T': { const p=posToInt(t.p); if(p<w.length){const a=[...w];a[p]=a[p]===a[p].toUpperCase()?a[p].toLowerCase():a[p].toUpperCase();w=a.join('');} break; }
+      case "'": { const n=posToInt(t.n); w=w.slice(0,n); break; }
+      case 's': w=w.split(t.f).join(t.t); break;
+      case '*': { const x=posToInt(t.x),y=posToInt(t.y); if(x<w.length&&y<w.length){const a=[...w];[a[x],a[y]]=[a[y],a[x]];w=a.join('');} break; }
+      case 'i': { const p=posToInt(t.p); w=w.slice(0,p)+t.c+w.slice(p); break; }
+      case 'o': { const p=posToInt(t.p); if(p<w.length) w=w.slice(0,p)+t.c+w.slice(p+1); break; }
+      case '<': { if(w.length>=posToInt(t.n)) return null; break; }
+      case '>': { if(w.length<=posToInt(t.n)) return null; break; }
+      case '_': { if(w.length!==posToInt(t.n)) return null; break; }
+      case '!': { if(w.includes(t.a)) return null; break; }
+      case '/': { if(!w.includes(t.a)) return null; break; }
+      case '=': { if(w[posToInt(t.p)]!==t.c) return null; break; }
+    }
+  }
+  return w;
+}
+
+function parseFile(text) {
+  return text.split('\n').map(l=>l.trim()).filter(l=>l && !l.startsWith('#') && !l.startsWith('['));
+}
+
+function dominant(tokens) {
+  for (const c of ['reject','subst','prepend','append','delete','case','transform','noop']) {
+    if (tokens.some(t=>t.cat===c)) return c;
+  }
+  return 'noop';
+}
+
+function App() {
+  const [rulesText, setRulesText] = useState(BEST64);
+  const [wordsText, setWordsText] = useState(DEFAULT_WORDS);
+  const [analyzed, setAnalyzed] = useState(null);
+  const [filter, setFilter] = useState('all');
+
+  const words = useMemo(() =>
+    wordsText.split('\n').map(w=>w.trim()).filter(Boolean).slice(0,12),
+    [wordsText]
+  );
+
+  function analyze() {
+    const rawRules = parseFile(rulesText);
+    const results = rawRules.map((rule, idx) => {
+      const tokens = parseTokens(rule);
+      const eng = tokens.map(t=>t.eng).join(' → ');
+      const cat = dominant(tokens);
+      const outputs = words.map(w => {
+        const out = applyTokens(w, tokens);
+        return { word: w, out, changed: out !== null && out !== w, rejected: out === null };
+      });
+      return { idx: idx+1, rule, tokens, eng, cat, outputs };
+    });
+    const totalOut = results.reduce((s,r) => s + r.outputs.filter(o=>!o.rejected).length, 0);
+    const cats = {};
+    results.forEach(r => { cats[r.cat] = (cats[r.cat]||0)+1; });
+    setFilter('all');
+    setAnalyzed({ results, totalOut, cats, ruleCount: results.length });
+  }
+
+  const filtered = analyzed
+    ? (filter === 'all' ? analyzed.results : analyzed.results.filter(r=>r.cat===filter))
+    : [];
+
+  const CAT_COLORS = {
+    transform:'cyan', case:'amber', append:'green', prepend:'teal',
+    delete:'red', subst:'purple', reject:'gray', noop:'gray'
+  };
+
+  return React.createElement('div', null,
+    React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 280px',gap:'16px',marginBottom:'16px'}},
+      React.createElement('div', null,
+        React.createElement('label', null,
+          'Rules',
+          React.createElement('div', {className:'preset-btns'},
+            React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(BEST64)}, 'best64'),
+            React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(COMMON)}, 'common'),
+            React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText('')}, 'clear')
+          )
+        ),
+        React.createElement('textarea', {
+          value: rulesText,
+          onChange: e=>setRulesText(e.target.value),
+          style:{height:'180px'},
+          placeholder:'Paste JtR/Hashcat rules here, one per line...\n# Lines starting with # are comments\n# [Section headers] are ignored'
+        })
+      ),
+      React.createElement('div', null,
+        React.createElement('label', null, 'Sample words', React.createElement('span', {style:{color:'var(--fg3)',fontSize:'10px',marginLeft:'6px'}},'max 12')),
+        React.createElement('textarea', {
+          value: wordsText,
+          onChange: e=>setWordsText(e.target.value),
+          style:{height:'180px'},
+          placeholder:'One word per line...'
+        })
+      )
+    ),
+
+    React.createElement('div', {className:'analyze-row'},
+      React.createElement('button', {className:'btn-analyze',onClick:analyze}, '▶  Analyze rules'),
+      analyzed && React.createElement('div', {className:'stats-bar'},
+        React.createElement('div', {className:'stat'}, React.createElement('strong', null, analyzed.ruleCount), 'rules'),
+        React.createElement('div', {className:'stat'}, React.createElement('strong', null, analyzed.totalOut), 'outputs'),
+        ...Object.entries(analyzed.cats).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([cat,n]) =>
+          React.createElement('div', {className:'stat',key:cat}, React.createElement('strong', null, n), cat)
+        )
+      )
+    ),
+
+    !analyzed && React.createElement('div', {className:'empty-state'},
+      React.createElement('div', {className:'big'}, '[ ]'),
+      React.createElement('div', null, 'paste rules and click analyze')
+    ),
+
+    analyzed && React.createElement('div', null,
+      React.createElement('div', {className:'filter-row'},
+        React.createElement('span', {className:'filter-label'}, 'type:'),
+        ['all','transform','case','append','prepend','delete','subst','reject','noop'].map(f => {
+          const count = f === 'all' ? analyzed.ruleCount : (analyzed.cats[f]||0);
+          if (f !== 'all' && count === 0) return null;
+          return React.createElement('button', {
+            key: f,
+            className: `btn-filter${filter===f?' active':''}`,
+            onClick: ()=>setFilter(f)
+          }, `${f} (${count})`);
+        })
+      ),
+      React.createElement('div', {className:'table-wrap'},
+        React.createElement('table', null,
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              React.createElement('th', null, '#'),
+              React.createElement('th', null, 'Rule'),
+              React.createElement('th', null, 'Type'),
+              React.createElement('th', null, 'Meaning'),
+              React.createElement('th', null, `Outputs (green = changed, strikethrough = rejected)`)
+            )
+          ),
+          React.createElement('tbody', null,
+            filtered.map(row =>
+              React.createElement('tr', {key:row.idx},
+                React.createElement('td', {className:'td-num'}, row.idx),
+                React.createElement('td', null, React.createElement('code', {className:'rule-str'}, row.rule || ':')),
+                React.createElement('td', null, React.createElement('span', {className:`badge badge-${row.cat}`}, row.cat)),
+                React.createElement('td', {className:'eng-cell'}, row.eng),
+                React.createElement('td', {className:'outputs-cell'},
+                  row.outputs.map((o,i) =>
+                    React.createElement('span', {
+                      key: i,
+                      className: `pill${o.rejected?' rejected':o.changed?' changed':''}`,
+                      title: o.rejected ? `'${o.word}' → rejected` : `'${o.word}' → '${o.out}'`
+                    }, o.rejected ? `✗ ${o.word}` : o.out)
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.render(React.createElement(App), document.getElementById('root'));
+</script>
+</body>
+</html>

@@ -539,6 +539,7 @@ function parseTokens(rule) {
   const s = rule.trim();
   while (i < s.length) {
     const ch = s[i];
+    if (ch === ' ' || ch === '\t') { i++; continue; }
     if (ch === ':') { tokens.push({op:':',eng:'passthrough (no change)',cat:'noop'}); i++; }
     else if (ch === 'l') { tokens.push({op:'l',eng:'lowercase all',cat:'case'}); i++; }
     else if (ch === 'u') { tokens.push({op:'u',eng:'uppercase all',cat:'case'}); i++; }

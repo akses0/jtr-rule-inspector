@@ -143,6 +143,21 @@
 
   .btn-preset:hover { color: var(--cyan); border-color: var(--cyan); }
 
+  .mode-toggle { display: inline-flex; border: 1px solid var(--border2); border-radius: 4px; overflow: hidden; }
+  .mode-toggle button {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--fg3);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+  .mode-toggle button.active { background: var(--bg3); color: var(--cyan); }
+  .mode-toggle button:hover:not(.active) { color: var(--fg2); }
+
   textarea {
     width: 100%;
     background: var(--bg2);
@@ -533,10 +548,11 @@ function posToInt(c) {
   return isNaN(n) ? 0 : n;
 }
 
-function parseTokens(rule) {
+function parseTokens(rule, mode) {
   const tokens = [];
   let i = 0;
   const s = rule.trim();
+  const isHashcat = mode === 'hashcat';
   while (i < s.length) {
     const ch = s[i];
     if (ch === ' ' || ch === '\t') { i++; continue; }
@@ -549,10 +565,6 @@ function parseTokens(rule) {
     else if (ch === 'd') { tokens.push({op:'d',eng:'duplicate word',cat:'transform'}); i++; }
     else if (ch === 'f') { tokens.push({op:'f',eng:'reflect (append reversed)',cat:'transform'}); i++; }
     else if (ch === 't') { tokens.push({op:'t',eng:'toggle case (all chars)',cat:'case'}); i++; }
-    else if (ch === 'k') { tokens.push({op:'k',eng:'swap first two chars',cat:'transform'}); i++; }
-    else if (ch === 'K') { tokens.push({op:'K',eng:'swap last two chars',cat:'transform'}); i++; }
-    else if (ch === 'q') { tokens.push({op:'q',eng:'duplicate each char',cat:'transform'}); i++; }
-    else if (ch === 'E') { tokens.push({op:'E',eng:'title case',cat:'case'}); i++; }
     else if (ch === '{') { tokens.push({op:'{',eng:'rotate left (first→last)',cat:'transform'}); i++; }
     else if (ch === '}') { tokens.push({op:'}',eng:'rotate right (last→first)',cat:'transform'}); i++; }
     else if (ch === '[') { tokens.push({op:'[',eng:'delete first char',cat:'delete'}); i++; }
@@ -561,9 +573,6 @@ function parseTokens(rule) {
     else if (ch === '^') { const a=s[i+1]||''; tokens.push({op:'^',a,eng:`prepend '${a}'`,cat:'prepend'}); i+=2; }
     else if (ch === '@') { const a=s[i+1]||''; tokens.push({op:'@',a,eng:`delete all '${a}'`,cat:'delete'}); i+=2; }
     else if (ch === 'D') { const p=s[i+1]||'0'; tokens.push({op:'D',p,eng:`delete char at pos ${posToInt(p)}`,cat:'delete'}); i+=2; }
-    else if (ch === 'z') { const n=s[i+1]||'1'; tokens.push({op:'z',n,eng:`dup first char ×${posToInt(n)}`,cat:'transform'}); i+=2; }
-    else if (ch === 'Z') { const n=s[i+1]||'1'; tokens.push({op:'Z',n,eng:`dup last char ×${posToInt(n)}`,cat:'transform'}); i+=2; }
-    else if (ch === 'p') { const n=s[i+1]||'1'; tokens.push({op:'p',n,eng:`dup word ×${posToInt(n)+1}`,cat:'transform'}); i+=2; }
     else if (ch === 'T') { const p=s[i+1]||'0'; tokens.push({op:'T',p,eng:`toggle case at pos ${posToInt(p)}`,cat:'case'}); i+=2; }
     else if (ch === "'") { const n=s[i+1]||'0'; tokens.push({op:"'",n,eng:`truncate to ${posToInt(n)} chars`,cat:'delete'}); i+=2; }
     else if (ch === '<') { const n=s[i+1]||'0'; tokens.push({op:'<',n,eng:`reject if len ≥ ${posToInt(n)}`,cat:'reject'}); i+=2; }
@@ -572,10 +581,26 @@ function parseTokens(rule) {
     else if (ch === '!') { const a=s[i+1]||''; tokens.push({op:'!',a,eng:`reject if contains '${a}'`,cat:'reject'}); i+=2; }
     else if (ch === '/') { const a=s[i+1]||''; tokens.push({op:'/',a,eng:`reject if missing '${a}'`,cat:'reject'}); i+=2; }
     else if (ch === 's') { const f=s[i+1]||'',t=s[i+2]||''; tokens.push({op:'s',f,t,eng:`replace '${f}' → '${t}'`,cat:'subst'}); i+=3; }
-    else if (ch === '*') { const x=s[i+1]||'0',y=s[i+2]||'1'; tokens.push({op:'*',x,y,eng:`swap pos ${posToInt(x)} ↔ ${posToInt(y)}`,cat:'transform'}); i+=3; }
     else if (ch === 'i') { const p=s[i+1]||'0',c=s[i+2]||''; tokens.push({op:'i',p,c,eng:`insert '${c}' at pos ${posToInt(p)}`,cat:'append'}); i+=3; }
     else if (ch === 'o') { const p=s[i+1]||'0',c=s[i+2]||''; tokens.push({op:'o',p,c,eng:`overwrite pos ${posToInt(p)} with '${c}'`,cat:'subst'}); i+=3; }
     else if (ch === '=') { const p=s[i+1]||'0',c=s[i+2]||''; tokens.push({op:'=',p,c,eng:`reject if pos ${posToInt(p)} ≠ '${c}'`,cat:'reject'}); i+=3; }
+    // mode-specific ops
+    else if (ch === 'p' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'pN',n,eng:`dup word ×${posToInt(n)+1}`,cat:'transform'}); i+=2; }
+    else if (ch === 'p' && !isHashcat) { tokens.push({op:'p',eng:'pluralize',cat:'append'}); i++; }
+    else if (ch === '(' && !isHashcat) { const a=s[i+1]||''; tokens.push({op:'(',a,eng:`reject unless first char = '${a}'`,cat:'reject'}); i+=2; }
+    else if (ch === ')' && !isHashcat) { const a=s[i+1]||''; tokens.push({op:')',a,eng:`reject unless last char = '${a}'`,cat:'reject'}); i+=2; }
+    // hashcat-only ops
+    else if (ch === 'k' && isHashcat) { tokens.push({op:'k',eng:'swap first two chars',cat:'transform'}); i++; }
+    else if (ch === 'K' && isHashcat) { tokens.push({op:'K',eng:'swap last two chars',cat:'transform'}); i++; }
+    else if (ch === 'q' && isHashcat) { tokens.push({op:'q',eng:'duplicate each char',cat:'transform'}); i++; }
+    else if (ch === 'E' && isHashcat) { tokens.push({op:'E',eng:'title case',cat:'case'}); i++; }
+    else if (ch === 'z' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'z',n,eng:`dup first char ×${posToInt(n)}`,cat:'transform'}); i+=2; }
+    else if (ch === 'Z' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'Z',n,eng:`dup last char ×${posToInt(n)}`,cat:'transform'}); i+=2; }
+    else if (ch === '*' && isHashcat) { const x=s[i+1]||'0',y=s[i+2]||'1'; tokens.push({op:'*',x,y,eng:`swap pos ${posToInt(x)} ↔ ${posToInt(y)}`,cat:'transform'}); i+=3; }
+    else if (ch === '+' && isHashcat) { const p=s[i+1]||'0'; tokens.push({op:'+',p,eng:`increment char at pos ${posToInt(p)}`,cat:'transform'}); i+=2; }
+    else if (ch === '-' && isHashcat) { const p=s[i+1]||'0'; tokens.push({op:'-',p,eng:`decrement char at pos ${posToInt(p)}`,cat:'transform'}); i+=2; }
+    else if (ch === 'Y' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'Y',n,eng:`dup last N=${posToInt(n)} → append`,cat:'transform'}); i+=2; }
+    else if (ch === 'y' && isHashcat) { const n=s[i+1]||'1'; tokens.push({op:'y',n,eng:`dup first N=${posToInt(n)} → prepend`,cat:'transform'}); i+=2; }
     else { tokens.push({op:ch,eng:`unknown op: '${ch}'`,cat:'noop'}); i++; }
   }
   return tokens;
@@ -608,7 +633,22 @@ function applyTokens(word, tokens) {
       case 'D': { const p=posToInt(t.p); w=w.slice(0,p)+w.slice(p+1); break; }
       case 'z': { const n=posToInt(t.n); w=(w[0]||'').repeat(n)+w; break; }
       case 'Z': { const n=posToInt(t.n); w=w+(w[w.length-1]||'').repeat(n); break; }
-      case 'p': { const n=posToInt(t.n); const orig=w; for(let j=0;j<n;j++) w+=orig; break; }
+      case 'pN': { const n=posToInt(t.n); const orig=w; for(let j=0;j<n;j++) w+=orig; break; }
+      case 'p': {
+        if (w.length === 0) break;
+        const last = w[w.length-1].toLowerCase();
+        const prev = w.length>1 ? w[w.length-2].toLowerCase() : '';
+        if (last==='y' && !'aeiou'.includes(prev)) w = w.slice(0,-1)+'ies';
+        else if (last==='s' || last==='x' || last==='z') w = w+'es';
+        else w = w+'s';
+        break;
+      }
+      case '(': { if (w[0] !== t.a) return null; break; }
+      case ')': { if (w[w.length-1] !== t.a) return null; break; }
+      case '+': { const p=posToInt(t.p); if(p<w.length){const a=[...w];a[p]=String.fromCharCode(a[p].charCodeAt(0)+1);w=a.join('');} break; }
+      case '-': { const p=posToInt(t.p); if(p<w.length){const a=[...w];a[p]=String.fromCharCode(a[p].charCodeAt(0)-1);w=a.join('');} break; }
+      case 'Y': { const n=posToInt(t.n); w = w + w.slice(Math.max(0,w.length-n)); break; }
+      case 'y': { const n=posToInt(t.n); w = w.slice(0,n) + w; break; }
       case 'T': { const p=posToInt(t.p); if(p<w.length){const a=[...w];a[p]=a[p]===a[p].toUpperCase()?a[p].toLowerCase():a[p].toUpperCase();w=a.join('');} break; }
       case "'": { const n=posToInt(t.n); w=w.slice(0,n); break; }
       case 's': w=w.split(t.f).join(t.t); break;
@@ -642,6 +682,7 @@ function App() {
   const [wordsText, setWordsText] = useState(DEFAULT_WORDS);
   const [analyzed, setAnalyzed] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [mode, setMode] = useState('jtr');
 
   const words = useMemo(() =>
     wordsText.split('\n').map(w=>w.trim()).filter(Boolean).slice(0,12),
@@ -651,7 +692,7 @@ function App() {
   function analyze() {
     const rawRules = parseFile(rulesText);
     const results = rawRules.map((rule, idx) => {
-      const tokens = parseTokens(rule);
+      const tokens = parseTokens(rule, mode);
       const eng = tokens.map(t=>t.eng).join(' → ');
       const cat = dominant(tokens);
       const outputs = words.map(w => {
@@ -706,6 +747,10 @@ function App() {
     ),
 
     React.createElement('div', {className:'analyze-row'},
+      React.createElement('div', {className:'mode-toggle'},
+        React.createElement('button', {className: mode==='jtr'?'active':'', onClick:()=>setMode('jtr')}, 'JtR'),
+        React.createElement('button', {className: mode==='hashcat'?'active':'', onClick:()=>setMode('hashcat')}, 'Hashcat')
+      ),
       React.createElement('button', {className:'btn-analyze',onClick:analyze}, '▶  Analyze rules'),
       analyzed && React.createElement('div', {className:'stats-bar'},
         React.createElement('div', {className:'stat'}, React.createElement('strong', null, analyzed.ruleCount), 'rules'),

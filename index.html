@@ -127,7 +127,7 @@
     margin-bottom: 6px;
   }
 
-  .preset-btns { display: flex; gap: 4px; margin-left: 4px; }
+  .preset-btns { display: flex; flex-wrap: wrap; gap: 4px; margin-left: 4px; }
 
   .btn-preset {
     font-family: var(--mono);
@@ -592,6 +592,12 @@ function parseTokens(rule) {
 const MAX_LEN = 1024;
 const MAX_RULES = 100000;
 
+const JUMBO_RULES = [
+  'best64', 'd3ad0ne', 'dive', 'InsidePro-PasswordsPro',
+  'passphrase-rule1', 'passphrase-rule2', 'rockyou-30000',
+  'specific', 'T0XlC', 'T0XlCv1', 'T0XlC-insert_top_100_passwords_1_G'
+];
+
 function applyTokens(word, tokens) {
   let w = word;
   for (const t of tokens) {
@@ -711,6 +717,13 @@ function App() {
         React.createElement('div', {className:'preset-btns'},
           React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(BEST64)}, 'best64'),
           React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(COMMON)}, 'common'),
+          ...JUMBO_RULES.map(name =>
+            React.createElement('button', {
+              key: name,
+              className: 'btn-preset',
+              onClick: () => fetch(`rules/${name}.rule`).then(r => r.text()).then(setRulesText)
+            }, name)
+          ),
           React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText('')}, 'clear')
         )
       ),

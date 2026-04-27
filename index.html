@@ -674,19 +674,19 @@ function App() {
     React.createElement('div', {style:{display:'grid',gridTemplateColumns:'1fr 280px',gap:'16px',marginBottom:'16px'}},
       React.createElement('div', null,
         React.createElement('label', null,
-          'Rules',
-          React.createElement('div', {className:'preset-btns'},
-            React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(BEST64)}, 'best64'),
-            React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(COMMON)}, 'common'),
-            React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText('')}, 'clear')
-          )
+          'Rules'
         ),
         React.createElement('textarea', {
           value: rulesText,
           onChange: e=>setRulesText(e.target.value),
           style:{height:'180px'},
           placeholder:'Paste JtR/Hashcat rules here, one per line...\n# Lines starting with # are comments\n# [Section headers] are ignored'
-        })
+        }),
+        React.createElement('div', {className:'preset-btns'},
+          React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(BEST64)}, 'best64'),
+          React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText(COMMON)}, 'common'),
+          React.createElement('button', {className:'btn-preset',onClick:()=>setRulesText('')}, 'clear')
+        )
       ),
       React.createElement('div', null,
         React.createElement('label', null, 'Sample words', React.createElement('span', {style:{color:'var(--fg3)',fontSize:'10px',marginLeft:'6px'}},'max 12')),
